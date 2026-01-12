@@ -80,18 +80,24 @@
             <p>[ CLICK TO REVEAL ]</p>
         </div>
 
-        <div class="left-section">
-          <div class="visualizer-container">
-            <video id="webcam" autoplay playsinline muted></video>
-            <canvas id="visualizer" width="600" height="600"></canvas>
-          </div>
+        <div class="first-row">
+            <div class="left-section">
+              <div class="visualizer-container">
+                <video id="webcam" autoplay playsinline muted></video>
+                <canvas id="visualizer" width="600" height="600"></canvas>
+              </div>
+            </div>
+
+            <div class="workspace">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+                    <p style="color: #3BC1A8; font-size: 24px; text-align: center; margin: 0;">WORKSPACE</p>
+                    <button id="endBtn" class="pixel-btn">END SESSION</button>
+                </div>
+            </div>
         </div>
 
-        <div class="workspace">
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
-                <p style="color: #3BC1A8; font-size: 24px; text-align: center; margin: 0;">WORKSPACE</p>
-                <button id="endBtn" class="pixel-btn">END SESSION</button>
-            </div>
+        <div class="second-row">
+            <p class="calibration-text">SYSTEM CALIBRATING...</p>
         </div>
 
         <audio id="audio" src="audio/edm.mp3" crossorigin="anonymous" loop></audio>
@@ -110,57 +116,48 @@
         const audio = document.getElementById("audio");
         const visualizerContainer = document.querySelector(".visualizer-container");
         
-        // Items to Hide/Show
+        // Items to Hide/Show (Note: Calibration text is now handled by CSS via mainContent)
         const mainHeader = document.getElementById("mainHeader");
         const mainHeadingBox = document.getElementById("mainHeadingBox");
-        const calibrationText = document.getElementById("calibrationText");
         
         const endBtn = document.getElementById("endBtn");
 
         // --- START BUTTON CLICK ---
         overlay.addEventListener("click", () => {
-          // 1. Hide Overlay
           overlay.style.opacity = "0";
           overlay.style.pointerEvents = "none";
 
-          // 2. Reveal Workspace
+          // This reveals the Workspace AND the Calibration Text
           mainContent.classList.remove("waiting-to-start");
           if(visualizerContainer) visualizerContainer.style.opacity = "1";
 
-          // 3. Play Audio
-          if (audio) {
-            audio.play().catch(e => console.log("Audio play failed:", e));
-          }
+          if (audio) audio.play().catch(e => console.log("Audio play failed:", e));
 
-          // 4. HIDE UI (Header, Title, Calibration)
-          mainHeader.classList.add("hidden");
-          mainHeadingBox.classList.add("hidden");
-          calibrationText.classList.add("hidden");
+          // Hide Header only
+          if(mainHeader) mainHeader.classList.add("hidden");
+          if(mainHeadingBox) mainHeadingBox.classList.add("hidden");
         });
 
         // --- END BUTTON CLICK ---
         endBtn.addEventListener("click", () => {
-          // 1. Pause Audio
           if (audio) {
             audio.pause();
-            audio.currentTime = 0; // Optional reset
+            audio.currentTime = 0;
           }
 
-          // 2. Show Overlay Again
           overlay.style.opacity = "1";
           overlay.style.pointerEvents = "all";
 
-          // 3. Hide Workspace (Return to waiting state)
+          // Hides Workspace AND Calibration Text
           mainContent.classList.add("waiting-to-start");
           if(visualizerContainer) visualizerContainer.style.opacity = "0";
 
-          // 4. SHOW UI (Header, Title, Calibration)
-          mainHeader.classList.remove("hidden");
-          mainHeadingBox.classList.remove("hidden");
-          calibrationText.classList.remove("hidden");
+          // Show Header
+          if(mainHeader) mainHeader.classList.remove("hidden");
+          if(mainHeadingBox) mainHeadingBox.classList.remove("hidden");
         });
 
-        // --- MENU & UPLOAD LOGIC (Existing) ---
+        // --- MENU LOGIC ---
         const menuTrigger = document.getElementById("menuTrigger");
         const menuOverlay = document.getElementById("menuOverlay");
         const closeMenuBtn = document.getElementById("closeMenuBtn");
@@ -171,7 +168,7 @@
           if (e.target === menuOverlay) menuOverlay.classList.remove("active");
         });
         
-        // Upload Logic
+        // --- UPLOAD LOGIC ---
         const uploadLink = document.getElementById("uploadLink");
         const videoInput = document.getElementById("videoInput");
         const statusText = document.getElementById("uploadStatus");
@@ -210,7 +207,7 @@
 
         async function uploadToBackend(file) {
           statusText.innerText = "Uploading...";
-          // ... (Your existing backend logic) ...
+          // ... existing backend logic ...
         }
       });
     </script>
