@@ -57,10 +57,42 @@
             <p>[ CLICK TO REVEAL ]</p>
         </div>
 
-        <div class="left-section">
-          <div class="visualizer-container">
-            <video id="webcam" autoplay playsinline muted></video>
-            <canvas id="visualizer" width="600" height="600"></canvas>
+        <div class="first-row">
+            
+            <div class="left-section">
+              <div class="visualizer-container">
+                <video id="webcam" autoplay playsinline muted></video>
+                <canvas id="visualizer" width="600" height="600"></canvas>
+              </div>
+
+              <button id="endBtn" class="pixel-btn" style="margin-top: -80px; z-index: 5;">END SESSION</button>
+            </div>
+
+            <div class="workspace">
+                <div id="blackjack-game">
+                    
+                    <div class="hud-score top-left">DEALER: <span id="dealer-score"></span></div>
+                    <div class="hud-score top-right">PLAYER: <span id="player-score"></span></div>
+
+                    <div class="hand-section">
+                        <div class="cards-container" id="dealer-cards">
+                            </div>
+                    </div>
+
+                    <div id="game-message">PRESS DEAL TO START</div>
+
+                    <div class="hand-section">
+                        <div class="cards-container" id="player-cards">
+                            </div>
+                    </div>
+
+                    <div class="controls">
+                        <button id="btn-hit" class="game-btn" disabled>HIT</button>
+                        <button id="btn-stand" class="game-btn" disabled>STAND</button>
+                        <button id="btn-deal" class="game-btn">DEAL</button>
+                    </div>
+                </div>
+            </div>
           </div>
         </div>
 
