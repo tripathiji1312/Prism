@@ -17,6 +17,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -28,47 +29,46 @@ public class VideoProcessingService {
     private static final String FRAMES_DIR = "Video/frames/";
     private static final String JSON_DIR = "Video/json/";
     
-    // Python Backend URL (Tree B running on Port 8000)
+    // Python Backend URL (Port 8000)
     private static final String PYTHON_ENDPOINT = "http://localhost:8000/process-file";
+    
+    // Local Blockchain Endpoint (Port 8080 - Self Call)
+    private static final String BLOCKCHAIN_ENDPOINT = "http://localhost:8080/api/verify/human?force=true";
 
     public String processVideo(MultipartFile file, String wallet, String screenColor) throws Exception {
-        // 1. Create Directories if they don't exist
+        // 1. Create Directories
         new File(UPLOAD_DIR).mkdirs();
         new File(FRAMES_DIR).mkdirs();
         new File(JSON_DIR).mkdirs();
 
-        // 2. Save the Raw Video File
+        // 2. Save Video
         String cleanName = file.getOriginalFilename().replaceAll("[^a-zA-Z0-9.-]", "_");
         String fileName = System.currentTimeMillis() + "_" + cleanName;
         Path videoPath = Paths.get(UPLOAD_DIR + fileName);
         Files.write(videoPath, file.getBytes());
 
-        // 3. Extract Frames using FFmpeg
+        // 3. Extract Frames
         String framePattern = FRAMES_DIR + "frame_%03d.jpg";
-
-        // --- FIX STARTS HERE ---
-        // TODO: CHANGE THIS PATH to exactly where your ffmpeg.exe is located!
-        // Example: "C:\\Users\\Sumit\\ffmpeg\\bin\\ffmpeg.exe"
-        // Note: Use double backslashes "\\" for Windows paths.
-        String ffmpegPath = "C:\\ffmpeg\\bin\\ffmpeg.exe";
+        
+        // TODO: Ensure this path is correct for your system!
+        String ffmpegPath = "ffmpeg"; // Or "C:\\ffmpeg\\bin\\ffmpeg.exe" on Windows
 
         ProcessBuilder pb = new ProcessBuilder(
-                ffmpegPath, // <--- Using the full path here
+                ffmpegPath,
                 "-i", videoPath.toString(),
-                "-vf", "scale=640:-1", // ENHANCE: Resize for consistent ML input
-                "-r", "5", // Extract 5 frames per second
-                "-q:v", "2", // High Quality JPEG
+                "-vf", "scale=640:-1",
+                "-r", "5", 
+                "-q:v", "2", 
                 framePattern);
-        // --- FIX ENDS HERE ---
 
         pb.redirectErrorStream(true);
         Process process = pb.start();
-        process.waitFor(); // Wait for extraction to finish
+        process.waitFor(); 
 
-        // 4. Generate JSON from the extracted frames
+        // 4. Generate JSON
         String jsonFilePath = generateJsonFromFrames(wallet, screenColor, fileName);
         
-        // 5. CALL PYTHON: Send the file path to Python for analysis
+        // 5. Chain: Call Python -> Get Score -> Call Blockchain
         return notifyPython(jsonFilePath);
     }
 
@@ -76,72 +76,78 @@ public class VideoProcessingService {
         ObjectMapper mapper = new ObjectMapper();
         ArrayNode framesArray = mapper.createArrayNode();
 
-        // Walk through the frames folder
         try (Stream<Path> paths = Files.walk(Paths.get(FRAMES_DIR))) {
             paths.filter(Files::isRegularFile)
                     .filter(p -> p.toString().endsWith(".jpg"))
                     .sorted(Comparator.comparing(Path::toString))
                     .forEach(path -> {
                         try {
-                            // Convert Image to Base64
                             byte[] fileContent = Files.readAllBytes(path);
                             String base64 = Base64.getEncoder().encodeToString(fileContent);
 
-                            // Create the JSON Object per frame
                             ObjectNode frameNode = mapper.createObjectNode();
                             frameNode.put("image", base64);
                             frameNode.put("screenColor", screenColor);
                             frameNode.put("wallet", wallet);
 
                             framesArray.add(frameNode);
-
-                            // Clean up: Delete frame image after adding to JSON
-                            Files.delete(path);
-
+                            Files.delete(path); // Cleanup frame
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
                     });
         }
 
-        // Write the final JSON file
         String jsonFileName = JSON_DIR + videoName + "_data.json";
         mapper.writeValue(new File(jsonFileName), framesArray);
-
         return jsonFileName;
     }
 
     private String notifyPython(String jsonFilePath) {
+        System.out.println("🔗 1. Calling Python Analysis...");
         File f = new File(jsonFilePath);
-        System.out.println("------------------------------------------------");
-        System.out.println("💾 JAVA SAVED FILE AT: " + f.getAbsolutePath());
-        System.out.println("📂 FILE EXISTS? " + f.exists());
-        System.out.println("------------------------------------------------");
-        // -----------------------------
-
-        System.out.println("🔗 Sending JSON Path to Python: " + jsonFilePath);
+        System.out.println("   File Path: " + f.getAbsolutePath());
         
         try {
             RestTemplate restTemplate = new RestTemplate();
             ObjectMapper mapper = new ObjectMapper();
             
-            // Construct Payload: {"json_path": "Video/json/..."}
+            // A. Send Path to Python
             ObjectNode payload = mapper.createObjectNode();
             payload.put("json_path", jsonFilePath);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-
             HttpEntity<String> request = new HttpEntity<>(payload.toString(), headers);
 
-            // Send POST request to Python
-            String response = restTemplate.postForObject(PYTHON_ENDPOINT, request, String.class);
-            System.out.println("✅ Python Response: " + response);
-            return response;
+            String pythonResponseStr = restTemplate.postForObject(PYTHON_ENDPOINT, request, String.class);
+            System.out.println("✅ Python Analysis Complete: " + pythonResponseStr);
+
+            // B. Check if Verified
+            JsonNode pythonResponse = mapper.readTree(pythonResponseStr);
+            String status = pythonResponse.has("status") ? pythonResponse.get("status").asText() : "failed";
+
+            if ("verified".equalsIgnoreCase(status)) {
+                System.out.println("🔗 2. Triggering Blockchain Minting...");
+                
+                HttpHeaders verifyHeaders = new HttpHeaders();
+                verifyHeaders.setContentType(MediaType.APPLICATION_JSON);
+                verifyHeaders.set("X-API-KEY", "prism-python-secret"); 
+
+                // Pass the Python scores to the Blockchain Controller
+                HttpEntity<String> verifyRequest = new HttpEntity<>(pythonResponseStr, verifyHeaders);
+                
+                String blockchainResponse = restTemplate.postForObject(BLOCKCHAIN_ENDPOINT, verifyRequest, String.class);
+                System.out.println("🎉 Blockchain Success: " + blockchainResponse);
+                
+                return blockchainResponse;
+            } else {
+                return pythonResponseStr; // Return failure reason
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
-            return "{\"status\": \"error\", \"message\": \"Failed to connect to Python Analyzer: " + e.getMessage() + "\"}";
+            return "{\"status\": \"error\", \"message\": \"Pipeline Error: " + e.getMessage() + "\"}";
         }
     }
 }
