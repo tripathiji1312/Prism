@@ -229,9 +229,17 @@ def main() -> int:
             cv2.rectangle(frame, (fx, fy), (fx + fww, fy + fhh), (0, 255, 255), 2)
             forehead = frame[fy : fy + fhh, fx : fx + fww]
 
-            # Run the engine with the *current* screen color
+            # Run the engine with the *current* screen color.
+            # IMPORTANT: pass a tight face crop (not the full frame) so anti-screen
+            # texture checks don’t get polluted by background regions.
+            if face_rect is not None:
+                x, y, fw, fh = face_rect
+                face_img = frame[y : y + fh, x : x + fw]
+            else:
+                face_img = frame
+
             result = engine.process_frame(
-                forehead, frame, state.screen_color, timestamp_ms=now * 1000.0
+                forehead, face_img, state.screen_color, timestamp_ms=now * 1000.0
             )
 
             # Compose a larger single window with stimulus as the FULL background.
