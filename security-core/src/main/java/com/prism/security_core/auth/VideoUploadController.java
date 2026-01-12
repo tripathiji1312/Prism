@@ -1,37 +1,53 @@
 package com.prism.security_core.auth;
 
-
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.*;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import com.prism.security_core.service.VideoProcessingService;
+import org.springframework.web.client.RestTemplate;
 
 @RestController
 @RequestMapping("/api/video")
-@CrossOrigin(origins = "*") // Allows your HTML frontend to talk to this backend
+@CrossOrigin(origins = "*") // Allows Frontend to talk to Java
 public class VideoUploadController {
-
-    @Autowired
-    private VideoProcessingService videoService;
 
     @PostMapping("/upload")
     public ResponseEntity<String> uploadVideo(
-            @RequestParam("video") MultipartFile video,
-            @RequestParam("wallet") String walletAddress,
+            @RequestParam("video") MultipartFile file,
+            @RequestParam("wallet") String wallet,
             @RequestParam("screenColor") String screenColor) {
+
         try {
-            String jsonPath = videoService.processVideo(video, walletAddress, screenColor);
-            return ResponseEntity.ok("Video Uploaded & Enhanced. JSON Data ready at: " + jsonPath);
+            // Forward the file to Python (Running on the same laptop)
+            String pythonUrl = "http://localhost:8000/process-video?wallet=" + wallet;
+
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            // Convert file to Resource
+            ByteArrayResource fileResource = new ByteArrayResource(file.getBytes()) {
+                @Override
+                public String getFilename() {
+                    return "video.webm";
+                }
+            };
+
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("file", fileResource);
+
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            // Send to Python
+            ResponseEntity<String> response = restTemplate.postForEntity(pythonUrl, requestEntity, String.class);
+
+            return ResponseEntity.ok(response.getBody());
+
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+            return ResponseEntity.status(500).body("Error processing video: " + e.getMessage());
         }
     }
 }

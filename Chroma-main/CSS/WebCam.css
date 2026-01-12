@@ -1,0 +1,199 @@
+/* --- YOUR EXISTING STYLES --- */
+      .menu-overlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(10px);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.4s ease;
+      }
+
+      .menu-overlay.active {
+        opacity: 1;
+        pointer-events: all;
+      }
+
+      .menu-items {
+        list-style: none;
+        text-align: center;
+        padding: 0;
+      }
+
+      .menu-items li { margin: 20px 0; }
+
+      .menu-items a {
+        font-family: "Tiny5", cursive;
+        font-size: 3rem;
+        color: white;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        transition: color 0.3s ease, text-shadow 0.3s ease;
+      }
+
+      .menu-items a:hover {
+        color: #00ffcc;
+        text-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffcc;
+      }
+
+      .close-btn {
+        position: absolute;
+        top: 30px; right: 40px;
+        font-family: "Tiny5", cursive;
+        font-size: 2rem;
+        color: white;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+      }
+
+      .close-btn:hover {
+        transform: scale(1.2);
+        color: #ff0055;
+      }
+
+      .btn-menu {
+        cursor: pointer;
+        z-index: 1001;
+      }
+
+      /* --- OVERLAY & VISUALIZER STYLES (Merged from your snippet) --- */
+      #overlay {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: transparent;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        z-index: 100; 
+        cursor: pointer;
+        padding-bottom: 240px; 
+        transition: opacity 0.5s ease;
+      }
+
+      #overlay span {
+        font-family: "Tiny5", sans-serif;
+        font-size: 30px; 
+        margin: 0;
+        color: #fff;
+        text-shadow: 0 0 15px #3BC1A8, 0 0 5px black;
+        letter-spacing: 5px;
+        animation: float 3s ease-in-out infinite;
+        pointer-events: none; 
+        text-align: center;
+      }
+
+      #overlay p {
+        font-family: "Tiny5", sans-serif;
+        color: #3BC1A8;
+        text-shadow: 0 0 2px black;
+        margin-top: 10px;
+        font-size: 20px;
+        animation: blink 1s infinite;
+        pointer-events: none;
+      }
+
+      .visualizer-container {
+        position: relative;
+        width: 600px;
+        height: 600px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        top: -80px; 
+        opacity: 0; 
+        transition: opacity 1.5s ease-in-out;
+        transform-origin: center center;
+      }
+
+      #visualizer {
+        position: absolute;
+        top: 0; left: 0;
+        z-index: 2;
+        pointer-events: none;
+        image-rendering: pixelated; 
+      }
+
+      #webcam {
+        position: absolute;
+        z-index: 1;
+        width: 260px; 
+        height: 260px;
+        border-radius: 50%; 
+        object-fit: cover;
+        transform: scaleX(-1);
+        background: #05080a;
+        border: 4px solid #1a2e33;
+        box-shadow: 0 0 20px rgba(59, 193, 168, 0.1);
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+      }
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+
+      /* --- NEW STYLES FOR RECORDING CONTROLS --- */
+      .controls-container {
+        position: relative;
+        /* Positioned below the visualizer container */
+        margin-top: -100px; 
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        opacity: 0; /* Hidden initially until Start is clicked */
+        transition: opacity 1s ease;
+      }
+
+      .btn-record {
+        font-family: "Tiny5", cursive;
+        font-size: 1.5rem;
+        background: transparent;
+        color: #3BC1A8;
+        border: 2px solid #3BC1A8;
+        padding: 10px 20px;
+        cursor: pointer;
+        text-transform: uppercase;
+        box-shadow: 0 0 10px rgba(59, 193, 168, 0.2);
+        transition: all 0.3s ease;
+      }
+
+      .btn-record:hover:not(:disabled) {
+        background: rgba(59, 193, 168, 0.1);
+        box-shadow: 0 0 20px rgba(59, 193, 168, 0.6);
+        text-shadow: 0 0 5px #3BC1A8;
+      }
+
+      .btn-record:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        border-color: #555;
+        color: #555;
+        box-shadow: none;
+      }
+
+      /* Make the stop button red/pink on hover */
+      #stopRecBtn:hover:not(:disabled) {
+        color: #ff0055;
+        border-color: #ff0055;
+        box-shadow: 0 0 20px rgba(255, 0, 85, 0.6);
+        text-shadow: 0 0 5px #ff0055;
+      }
+
+      #recStatus {
+        font-family: "Tiny5", cursive;
+        color: white;
+        font-size: 1.2rem;
+        text-shadow: 0 0 2px black;
+      }

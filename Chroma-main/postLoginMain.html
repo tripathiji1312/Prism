@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="CSS/main.css" />
     <link rel="stylesheet" href="CSS/fireflies.css" />
     <link rel="stylesheet" href="CSS/visualizer.css" />
+    <link rel="stylesheet" href="CSS/WebCam.css" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,32 +19,7 @@
 
     <title>Chroma</title>
 
-    <style>
-      /* Menu Overlay Styles */
-      .menu-overlay {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
-        z-index: 1000; display: flex; flex-direction: column;
-        justify-content: center; align-items: center;
-        opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
-      }
-      .menu-overlay.active { opacity: 1; pointer-events: all; }
-      .menu-items { list-style: none; text-align: center; padding: 0; }
-      .menu-items li { margin: 20px 0; }
-      .menu-items a {
-        font-family: "Tiny5", cursive; font-size: 3rem; color: white;
-        text-decoration: none; text-transform: uppercase; letter-spacing: 2px;
-        transition: color 0.3s ease, text-shadow 0.3s ease;
-      }
-      .menu-items a:hover { color: #00ffcc; text-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffcc; }
-      .close-btn {
-        position: absolute; top: 30px; right: 40px;
-        font-family: "Tiny5", cursive; font-size: 2rem; color: white;
-        cursor: pointer; transition: transform 0.3s ease;
-      }
-      .close-btn:hover { transform: scale(1.2); color: #ff0055; }
-      .btn-menu { cursor: pointer; z-index: 1001; }
-    </style>
+    
   </head>
   <body>
     <div class="background"></div>
@@ -60,6 +36,7 @@
           <li><a href="#">Live Video</a></li>
           <li><a href="loginpage.html">Log Out</a></li>
         </ul>
+
         <input type="file" id="videoInput" accept="video/*" style="display: none" />
         <p id="uploadStatus" style="color: white; text-align: center; margin-top: 10px"></p>
       </div>
@@ -87,11 +64,17 @@
           </div>
         </div>
 
-        <div class="workspace">
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
-                <p style="color: #3BC1A8; font-size: 24px; text-align: center; margin: 0;">WORKSPACE</p>
-                <button id="endBtn" class="pixel-btn">END SESSION</button>
-            </div>
+        <div class="visualizer-container" id="visualizerContainer">
+          <video id="webcam" autoplay playsinline muted></video>
+          <canvas id="visualizer" width="600" height="600"></canvas>
+        </div>
+
+        <div class="controls-container" id="controlsContainer">
+           <div style="display: flex; gap: 15px;">
+              <button id="startRecBtn" class="btn-record">Record</button>
+              <button id="stopRecBtn" class="btn-record" disabled>Stop</button>
+           </div>
+           <p id="recStatus">Ready</p>
         </div>
 
         <audio id="audio" src="audio/edm.mp3" crossorigin="anonymous" loop></audio>
@@ -101,118 +84,6 @@
     <script src="JS/Innerfirefiles.js"></script>
     <script src="JS/Outerfireflies.js"></script>
     <script src="JS/visualizer.js"></script>
-
-    <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        // --- UI ELEMENTS ---
-        const overlay = document.getElementById("overlay");
-        const mainContent = document.getElementById("mainContent");
-        const audio = document.getElementById("audio");
-        const visualizerContainer = document.querySelector(".visualizer-container");
-        
-        // Items to Hide/Show
-        const mainHeader = document.getElementById("mainHeader");
-        const mainHeadingBox = document.getElementById("mainHeadingBox");
-        const calibrationText = document.getElementById("calibrationText");
-        
-        const endBtn = document.getElementById("endBtn");
-
-        // --- START BUTTON CLICK ---
-        overlay.addEventListener("click", () => {
-          // 1. Hide Overlay
-          overlay.style.opacity = "0";
-          overlay.style.pointerEvents = "none";
-
-          // 2. Reveal Workspace
-          mainContent.classList.remove("waiting-to-start");
-          if(visualizerContainer) visualizerContainer.style.opacity = "1";
-
-          // 3. Play Audio
-          if (audio) {
-            audio.play().catch(e => console.log("Audio play failed:", e));
-          }
-
-          // 4. HIDE UI (Header, Title, Calibration)
-          mainHeader.classList.add("hidden");
-          mainHeadingBox.classList.add("hidden");
-          calibrationText.classList.add("hidden");
-        });
-
-        // --- END BUTTON CLICK ---
-        endBtn.addEventListener("click", () => {
-          // 1. Pause Audio
-          if (audio) {
-            audio.pause();
-            audio.currentTime = 0; // Optional reset
-          }
-
-          // 2. Show Overlay Again
-          overlay.style.opacity = "1";
-          overlay.style.pointerEvents = "all";
-
-          // 3. Hide Workspace (Return to waiting state)
-          mainContent.classList.add("waiting-to-start");
-          if(visualizerContainer) visualizerContainer.style.opacity = "0";
-
-          // 4. SHOW UI (Header, Title, Calibration)
-          mainHeader.classList.remove("hidden");
-          mainHeadingBox.classList.remove("hidden");
-          calibrationText.classList.remove("hidden");
-        });
-
-        // --- MENU & UPLOAD LOGIC (Existing) ---
-        const menuTrigger = document.getElementById("menuTrigger");
-        const menuOverlay = document.getElementById("menuOverlay");
-        const closeMenuBtn = document.getElementById("closeMenuBtn");
-
-        menuTrigger.addEventListener("click", () => menuOverlay.classList.add("active"));
-        closeMenuBtn.addEventListener("click", () => menuOverlay.classList.remove("active"));
-        menuOverlay.addEventListener("click", (e) => {
-          if (e.target === menuOverlay) menuOverlay.classList.remove("active");
-        });
-        
-        // Upload Logic
-        const uploadLink = document.getElementById("uploadLink");
-        const videoInput = document.getElementById("videoInput");
-        const statusText = document.getElementById("uploadStatus");
-
-        if (uploadLink) {
-          uploadLink.addEventListener("click", (e) => {
-            e.preventDefault();
-            const menuOverlay = document.getElementById("menuOverlay");
-            if (menuOverlay) menuOverlay.classList.remove("active");
-            videoInput.click();
-          });
-        }
-
-        if (videoInput) {
-          videoInput.addEventListener("change", function () {
-            if (this.files && this.files[0]) {
-              validateAndUpload(this.files[0]);
-            }
-          });
-        }
-
-        function validateAndUpload(file) {
-          const videoElement = document.createElement("video");
-          videoElement.preload = "metadata";
-          videoElement.onloadedmetadata = function () {
-            window.URL.revokeObjectURL(videoElement.src);
-            if (videoElement.duration > 9) {
-              alert("Video too long. Max 9s.");
-              videoInput.value = "";
-              return;
-            }
-            uploadToBackend(file);
-          };
-          videoElement.src = URL.createObjectURL(file);
-        }
-
-        async function uploadToBackend(file) {
-          statusText.innerText = "Uploading...";
-          // ... (Your existing backend logic) ...
-        }
-      });
-    </script>
+    <script src="JS/webcam.js"></script>
   </body>
 </html>

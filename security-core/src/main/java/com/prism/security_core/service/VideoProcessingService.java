@@ -11,6 +11,10 @@ import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -23,6 +27,9 @@ public class VideoProcessingService {
     private static final String UPLOAD_DIR = "Video/";
     private static final String FRAMES_DIR = "Video/frames/";
     private static final String JSON_DIR = "Video/json/";
+    
+    // Python Backend URL (Tree B running on Port 8000)
+    private static final String PYTHON_ENDPOINT = "http://localhost:8000/process-file";
 
     public String processVideo(MultipartFile file, String wallet, String screenColor) throws Exception {
         // 1. Create Directories if they don't exist
@@ -31,7 +38,8 @@ public class VideoProcessingService {
         new File(JSON_DIR).mkdirs();
 
         // 2. Save the Raw Video File
-        String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+        String cleanName = file.getOriginalFilename().replaceAll("[^a-zA-Z0-9.-]", "_");
+        String fileName = System.currentTimeMillis() + "_" + cleanName;
         Path videoPath = Paths.get(UPLOAD_DIR + fileName);
         Files.write(videoPath, file.getBytes());
 
@@ -58,7 +66,10 @@ public class VideoProcessingService {
         process.waitFor(); // Wait for extraction to finish
 
         // 4. Generate JSON from the extracted frames
-        return generateJsonFromFrames(wallet, screenColor, fileName);
+        String jsonFilePath = generateJsonFromFrames(wallet, screenColor, fileName);
+        
+        // 5. CALL PYTHON: Send the file path to Python for analysis
+        return notifyPython(jsonFilePath);
     }
 
     private String generateJsonFromFrames(String wallet, String screenColor, String videoName) throws Exception {
@@ -98,5 +109,39 @@ public class VideoProcessingService {
         mapper.writeValue(new File(jsonFileName), framesArray);
 
         return jsonFileName;
+    }
+
+    private String notifyPython(String jsonFilePath) {
+        File f = new File(jsonFilePath);
+        System.out.println("------------------------------------------------");
+        System.out.println("💾 JAVA SAVED FILE AT: " + f.getAbsolutePath());
+        System.out.println("📂 FILE EXISTS? " + f.exists());
+        System.out.println("------------------------------------------------");
+        // -----------------------------
+
+        System.out.println("🔗 Sending JSON Path to Python: " + jsonFilePath);
+        
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            ObjectMapper mapper = new ObjectMapper();
+            
+            // Construct Payload: {"json_path": "Video/json/..."}
+            ObjectNode payload = mapper.createObjectNode();
+            payload.put("json_path", jsonFilePath);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<String> request = new HttpEntity<>(payload.toString(), headers);
+
+            // Send POST request to Python
+            String response = restTemplate.postForObject(PYTHON_ENDPOINT, request, String.class);
+            System.out.println("✅ Python Response: " + response);
+            return response;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "{\"status\": \"error\", \"message\": \"Failed to connect to Python Analyzer: " + e.getMessage() + "\"}";
+        }
     }
 }
